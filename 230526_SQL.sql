@@ -1938,7 +1938,7 @@ FROM USER_TABLES;
 SELECT*FROM ALL_CONSTRAINTS
 WHERE TABLE_NAME='PROD'
 
---------402P PL SQL
+--------402P PL SQL------------------------------------------------------------------------------------------------------
 
 SET SERVEROUTPUT ON
 
@@ -2043,7 +2043,201 @@ FROM   MEMBER
 WHERE  MEM_MILEAGE>5000;
 
 
+--417P
+SET SERVEROUTPUT ON 
+
+DECLARE
+    V_NUM   NUMBER := 77;
+BEGIN
+    V_NUM := TRUNC(V_NUM / 10);
+    
+    CASE V_NUM    
+        WHEN 10 THEN
+            DBMS_OUTPUT.PUT_LINE('수' || '(' || V_NUM || ')');
+        WHEN 9 THEN
+            DBMS_OUTPUT.PUT_LINE('수' || '(' || V_NUM || ')');
+        WHEN 8 THEN
+            DBMS_OUTPUT.PUT_LINE('우' || '(' || V_NUM || ')');
+        WHEN 7 THEN
+            DBMS_OUTPUT.PUT_LINE('미' || '(' || V_NUM || ')');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('분발합시다');
+    END CASE;
+END;
+
+--1부터 10까지 더하기
+
+DECLARE
+V_SUM NUMBER := 0;
+V_VAR NUMBER := 1;
+BEGIN
+WHILE V_VAR<=10 LOOP
+V_SUM := V_SUM + V_VAR;
+V_VAR := V_VAR + 1;
+END LOOP;
+DBMS_OUTPUT.PUT_LINE('1부터 10까지의합=' || V_SUM);
+END;
+/
+--WHILE문을  사용하여 * 로 피라미드 만들기 
+DECLARE
+    V_ID NUMBER:=1;
+BEGIN
+    WHILE V_ID<20 LOOP
+    DBMS_OUTPUT.PUT_LINE(RPAD('*',V_ID,'*'));
+    V_ID:= V_ID+2;
+  END LOOP;
+END;
+--시험 420
+SET SERVEROUT ON
+DECLARE    --선언해라
+V_ID NUMBER :=1;   --초기값을 NUMBER 타입, 초기값은 1
+V_ID2 NUMBER :=10; --초기값을 NUMBER 타입, 초기값은 10
+BEGIN  --본문을 실행해라
+DBMS_OUTPUT.PUT_LINE('');   --버그가 생기는것을 막기 위해 의미없는 것
+WHILE V_ID<20 LOOP     --1<20 
+DBMS_OUTPUT.PUT(RPAD('A',v_ID2,' '));  -- 오른쪽에서 채우는 방식으로 v_ID2숫자만큼 /A를 쓰고 오른쪽에 10칸 공백
+DBMS_OUTPUT.PUT_LINE(RPAD('*',V_ID,'*'));
+V_ID:=V_ID +2;
+V_ID2:=V_ID2-1;
+END LOOP;
+END;
+--421
+DECLARE
+    V_I NUMBER := 2;
+    V_J NUMBER := 1;
+BEGIN
+    WHILE V_I < 10 LOOP
+        DBMS_OUTPUT.PUT_LINE(V_I || ' 단 ');
+        
+        V_J := 1;
+        
+        WHILE V_J < 10 LOOP
+            DBMS_OUTPUT.PUT_LINE(V_I || ' X ' || V_J || '=' || V_I * V_J);
+            
+            V_J := V_J + 1;
+        END LOOP;
+        
+        V_I := V_I + 1;
+    END LOOP;
+END; 
+/
+
+--Oracle Server는 SQL문장을 실행할 때 PL/SQL은 SQL식별자를 가지는 암시적 커서를 생성합니다.  또한 PL/SQL은 자동적으로 이 커서를 관리합니다. 
+
+DECLARE
+    V_NM VARCHAR2(20);
+BEGIN
+    SELECT LPROD_NM INTO V_NM FROM LPROD WHERE LPROD_GU = 'P201'; --LPROD_NM값을 v_nm에 저장
+    IF SQL%FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('받은 값 = ' || V_NM);
+        DBMS_OUTPUT.PUT_LINE('행 수 = '   || SQL%ROWCOUNT);
+    END IF;
+END;
+
+--상품분류 테이블에 6개의 코드 증가
+DECLARE
+    V_ADD   NUMBER(5) := 1000;
+    V_CODE  CHAR(4)   := '';
+    V_ID    NUMBER(5);
+BEGIN
+    SELECT MAX(LPROD_ID) INTO V_ID FROM LPROD;
+    WHILE V_ADD <= 1005 LOOP
+        V_ADD := V_ADD + 1;
+        V_ID  := V_ID + 1;
+        V_CODE := 'TT' || SUBSTR(TO_CHAR(V_ADD), -2);
+        INSERT INTO LPROD(LPROD_ID, LPROD_GU, LPROD_NM) VALUES(V_ID, V_CODE, 'LOOP TEST');
+        IF SQL%FOUND THEN
+            DBMS_OUTPUT.PUT_LINE('신규코드' || V_CODE || '가 추가되었음');
+        END IF;
+    END LOOP;
+END;
+/
+
+select*from lprod;
+
+--WHILE문을 사용하여  상기 INSERT된 데이터를 삭제하시오 ? (삭제가 되었는지 확인 메시지 출력)
+DECLARE
+V_ADD NUMBER(5) := 1007;  --1007 초기값
+V_CODE CHAR(4) := '';  --공백 
+V_ID NUMBER(5);
+
+BEGIN
+  SELECT MAX(LPROD_ID) INTO V_ID FROM LPROD;  --MAX(LPROD_ID)를 읽어서 INTO V_ID 저장  /V_ID값은 
+  
+  WHILE V_ADD>=1002 LOOP    --V_ADD 변수가 1002이상인 동안 반복하는 반복문
+    DELETE FROM LPROD WHERE LPROD_ID=V_ID;  --V_ID : 16, 15, 14, 13, 12, 11 /LPROD_ID=V_ID일치하는 행을 lprod 테이블에서 삭제한다
 
 
+V_ADD  := V_ADD - 1;   --1006, 1005, 1004, 1003, 1002, 1001까지 1씩 감소(6회 반복)
+    V_ID   := V_ID  - 1;   --LPROD_ID 최대값 즉, 16, 15, 14, 13, 12, 11
+    V_CODE := 'TT'||SUBSTR(TO_CHAR(V_ADD),-2);  --화면에 결과를 출력하기 위함--변수의 값을 문자열로 변환하고 뒤에서 2자리를 추출하여 'TT'와 결합한 후, V_CODE 변수에 저장합니다
 
+  IF SQL%FOUND THEN
+    --TT06, TT05, ...
+    DBMS_OUTPUT.PUT_LINE('기존코드' || V_CODE || '가 삭제되었습니다');
+  END IF;
+END LOOP;
+END;
 
+--425
+DECLARE
+v_sum INT:=0;
+v_VAR INT:=1;
+BEGIN
+<<mylabel>> --라벨위치 표시 
+v_sum:=v_sum + v_var;
+v_var:= v_var+1;
+IF v_var<=10 THEN
+GOTO mylabel; --라벨위치로 돌아가서 다시 실행
+END IF;
+DBMS_OUTPUT.PUT_LINE(v_sum);
+DBMS_OUTPUT.PUT_LINE(v_var);
+END;
+
+--426  1부터 10까지 더하기
+DECLARE
+V_SUM NUMBER:=0;
+V_VAR NUMBER:=1;
+BEGIN
+LOOP
+V_SUM:=V_SUM+V_VAR;
+V_VAR:=V_VAR+1;
+IF V_VAR>10 THEN
+EXIT;
+END IF;
+END LOOP;
+DBMS_OUTPUT.PUT_LINE('1부터 10까지의 합='||V_SUM);
+END;
+
+DECLARE
+  v_sum NUMBER := 0;
+  v_var   NUMBER := 1;
+BEGIN
+  LOOP
+    v_sum := v_sum + v_var;
+    v_var   := v_var + 1;
+    EXIT  WHEN  v_var > 10 ;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE('1 부터 10 까지의 합 = ' || v_sum);
+END;
+
+--428
+BEGIN 
+FOR I IN 1..10 LOOP
+DBMS_OUTPUT.PUT_LINE('I='||I);
+END LOOP;
+END;
+
+--430
+DECLARE
+TYPE STARCRAFT IS VARRAY(20) OF VARCHAR2(10);--TYPE선언
+V_STAR STARCRAFT;
+BEGIN
+v_star := starcraft('Terran','Protos');
+V_STAR.EXTEND;   --S
+V_STAR(3):='ZERG';
+DBMS_OUTPUT.PUT_LINE('스타크래프트 종족:'||V_STAR.COUNT);
+FOR I IN V_STAR.FIRST..V_STAR.LAST LOOP
+DBMS_OUTPUT.PUT_LINE(I||'번째 종족:'||V_STAR(I));
+END LOOP;
+END;

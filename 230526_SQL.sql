@@ -2387,14 +2387,150 @@ DBMS_OUTPUT.PUT_LINE(member_cur%ROWCOUNT ||'번째'
                     END;
                     /
 --447
+SET SERVEROUTPUT ON 
+
 BEGIN 
-FOR mem_rec IN (SELECT mem_name,mem_mileage
-FROM member ORDER BY mem_name ASC)LOOP
+FOR mem_rec IN (SELECT mem_id,mem_name,mem_mileage
+FROM member 
+ORDER BY mem_name ASC)LOOP
 DBMS_OUTPUT.PUT_LINE(mem_rec.mem_id ||','
                         || mem_rec.mem_name ||','
-                        || mem_rec.emem_mileage);
+                        || mem_rec.mem_mileage);
                         END LOOP;
                         END;
                         /
                         
+--450
+CREATE OR REPLACE PROCEDURE usp_prod_totalstock_update 
+    ( v_prod_id IN prod.prod_id%TYPE, 
+      v_qty     IN prod.prod_totalstock%TYPE )               
+IS        
+BEGIN
+   UPDATE prod 
+          SET prod_totalstock = prod_totalstock + v_qty
+    WHERE prod_id = v_prod_id;
+   DBMS_OUTPUT.PUT_LINE('정상적으로 업데이트 되었습니다.');
+   COMMIT;
 
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('예외 발생:' || SQLERRM);
+      ROLLBACK;
+END;
+--
+
+SELECT prod_id, prod_totalstock 
+       FROM prod 
+     WHERE prod_id = 'P102000006';
+
+ EXECUTE usp_prod_totalstock_update('P102000006', 500);
+
+select * from prod;
+--
+CREATE OR REPLACE PROCEDURE usp_MemberID
+(P_mem_id IN member.mem_id%TYPE,
+p_mem_name OUT member.mem_name%TYPE,
+p_mem_like OUT member.mem_like%TYPE)
+IS
+BEGIN
+SELECT mem_name, mem_like
+INTO p_mem_name, p_mem_like
+FROM member
+WHERE mem_id=p_mem_id;
+END;
+-실행456
+VAR send_member VARCHAR2
+VAR send_amt NUMBER
+EXEC usp_MemberCartTop('2020', :send_amt, :send_member);
+PRINT send_member 
+PRINT send_amt;
+
+
+--
+CREATE OR REPLACE PROCEDURE usp_MemberCartTop
+(p_year   IN VARCHAR2,
+p_amt  OUT NUMBER,
+p_mem_name OUT member.mem_name%TYPE)
+IS
+v_year VARCHAR2(5);
+BEGIN
+v_year:=(p_year || '%');
+SELECT mem_name, mem_amt INTO p_mem_name,p_amt
+FROM(
+SELECT mem_name, SUM(prod_price*cart_qty) mem_amt
+FROM member, cart, prod
+AND cart_member= mem_id
+AND cart_prod=prod_id
+GROUP BY mem_name
+ORDER BY SUM(prod_price*cart_qty) DESC
+)
+WHERE ROWNUM<=1;
+END;
+/
+
+--458
+SELECT cart_no, cart_prod, cart_member,
+(SELECT mem_name FROM member WHERE mem_id=cart_member)name
+FROM cart
+WHERE cart_no='2020040100001';
+
+--460
+CREATE OR REPLACE FUNCTION fn_memNAME
+(p_mem_id IN VARCHAR2)
+RETURN VARCHAR2
+IS
+ r_name VARCHAR2(30);
+ BEGIN
+ SELECT mem_name INTO r_name FROM member
+ WHERE mem_id = p_mem_id;
+ RETURN r_name;
+ 
+ EXCEPTION
+ WHEN OTHERS THEN
+ DBMS_OUTPUT.PUT_LINE('예외발생:' || SQLERRM);
+ RETURN null;
+ END;
+ 
+-fn_memName 실행 테스트 
+ VAR m_name VARCHAR2
+ EXECUTE :m_name := fn_memName('a001') ;
+ PRINT m_name
+ 
+ -실제 함수처럼 SQL구문에서 실행 
+ SELECT cart_no, cart_prod, cart_member, fn_memName(cart_member)
+ FROM cart
+  WHERE  cart_no = '2020040100001'
+
+--462
+CREATE OR REPLACE  FUNCTION  fn_prodAvgQty
+      ( p_year       IN NUMBER DEFAULT (EXTRACT(YEAR FROM SYSDATE)),
+        p_prod_id IN VARCHAR2) 
+ RETURN NUMBER
+ IS
+    r_qty NUMBER(10);
+    v_year VARCHAR2(5) := TO_CHAR(p_year) || '%';
+ BEGIN
+    SELECT NVL(AVG(cart_qty),0) INTO r_qty  FROM cart 
+      WHERE cart_prod = p_prod_id AND cart_no like v_year;
+    RETURN r_qty; 
+EXCEPTION 
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('예외 발생:' || SQLERRM);
+      RETURN 0;    
+ END;
+/
+--463
+
+
+
+--464 fn_prodAvgQty 실행 테스트
+ VAR qty NUMBER
+ EXEC :qty := fn_prodAvgQty( 2004, 'P201000020'); 
+ PRINT qty
+ EXEC :qty := fn_prodAvgQty(2020, 'P101000002');  
+ PRINT qty
+-- 실제 함수처럼 SQL구문에서 실행 
+ SELECT prod_id, prod_name, 
+                 fn_prodAvgQty(2004,prod_id) "2004년 평균 판매횟수",
+                 fn_prodAvgQty(2020,prod_id) "2020년 평균 판매횟수"
+ FROM prod

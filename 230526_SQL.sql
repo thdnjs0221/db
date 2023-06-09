@@ -2534,3 +2534,132 @@ EXCEPTION
                  fn_prodAvgQty(2004,prod_id) "2004년 평균 판매횟수",
                  fn_prodAvgQty(2020,prod_id) "2020년 평균 판매횟수"
  FROM prod
+ 
+ 
+ 
+ --494  트리거
+ 
+ CREATE or REPLACE TRIGGER tg_cart_qty_change
+      AFTER  insert or update or delete    ON  cart
+      FOR EACH ROW
+   DECLARE 
+       v_qty NUMBER;
+       v_prod VARCHAR2(20);
+ BEGIN
+    IF INSERTING THEN
+         v_qty := NVL(:NEW.cart_qty,0);
+         v_prod := :NEW.cart_prod;
+    ELSIF UPDATING THEN
+         v_qty :=  NVL(:NEW.cart_qty,0) - NVL(:OLD.cart_qty,0);
+         v_prod := :NEW.cart_prod;
+    ELSIF DELETING THEN
+         v_qty :=  -(NVL(:OLD.cart_qty,0));
+         v_prod := :OLD.cart_prod;
+    END IF;   
+
+
+UPDATE remain SET remain_o = remain_o + v_qty,  
+                       remain_j_99 = remain_j_99 - v_qty
+WHERE remain_prod = v_prod;
+    
+DBMS_OUTPUT.PUT_LINE('수량 :' || v_qty);
+
+EXCEPTION 
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('예외 발생:' || SQLERRM);     
+END;
+/
+
+
+SELECT *FROM REMAIN
+WHERE remain_year='2003' AND remain_prod='P101000001';
+
+
+--테이블 확인
+SELECT *FROM CART;
+SELECT *FROM REMAIN;
+
+
+delete from cart;
+
+
+
+
+
+INSERT INTO REMAIN(REMAIN_YEAR, REMAIN_PROD, remain_j_00, REMAIN_I, REMAIN_O, REMAIN_J_99, REMAIN_DATE)
+VALUES('2022', 'P102000001', 30, 20, 5, 45, '2023-01-01');
+
+INSERT INTO REMAIN(REMAIN_YEAR, REMAIN_PROD, remain_j_00, REMAIN_I, REMAIN_O, REMAIN_J_99, REMAIN_DATE)
+VALUES('2022', 'P102000002', 10, 10, 5, 15, '2023-01-01');
+
+SET SERVEROUTPUT ON 
+
+--상품판매 확인
+INSERT INTO CART VALUES ('a001','202306090001','P102000001',4);
+
+
+--수정
+SELECT *FROM CART;
+update cart set cart_qty=2
+where cart_no='202306090001';
+
+--삭제
+delete from cart where cart_no='202306090001';
+
+
+----------------------------------------------------
+
+
+--498 위 작성된 트리거를 해당 회원의 마일리지도 변경되는 트리거로 변경하시오
+--단, 마일리지는 (수량*상품판매가)의 1%로한다  496페이지
+
+CREATE or REPLACE TRIGGER tg_mem_mileage_change
+--이름의 트리거생성 혹은 갱신 
+      AFTER  insert or update or delete ON cart
+      --cart테이블에서 삽입 수정 삭제가 이루어진 후에 트리거 발생하도록함
+      FOR EACH ROW
+      --각행이 변경될때마다 트리거를 발생시키는 방법 , 없을때는 단 한번만 트리거 
+DECLARE 
+--선언
+       v_qty NUMBER(9);
+       --정수 숫자타입 변수 선언
+       v_prod VARCHAR2(10);
+       --가변 문자 타입 20바이트 크기로 변수 선언
+       v_member VARCHAR2(15);
+       v_prod_sale prod.prod_sale%type;
+       v_sum NUMBER := 10;
+ BEGIN
+ --pl sql구조로 시작 부문- 실행부문 시작 
+    IF INSERTING THEN
+        v_qty := NVL(:NEW.cart_qty,0); 
+        v_prod := :NEW.cart_prod;        
+        v_member := :NEW.cart_member;
+    ELSIF UPDATING THEN
+         v_qty :=  NVL(:NEW.cart_qty,0) - NVL(:OLD.cart_qty,0);
+         v_prod := :NEW.cart_prod;
+         v_member := :NEW.cart_member;
+    ELSIF DELETING THEN
+         v_qty :=  -(NVL(:OLD.cart_qty,0));
+         v_prod := :OLD.cart_prod;
+         v_member := :OLD.cart_member;
+    END IF;
+    SELECT prod_sale INTO v_prod_sale from prod  WHERE prod_id = v_prod;
+    v_sum := (v_prod_sale * v_qty) * 0.01;
+
+    UPDATE member SET mem_mileage = mem_mileage + v_sum
+           WHERE mem_id = v_member;
+    DBMS_OUTPUT.PUT_LINE('변경마일리지 ==> ' || v_sum);
+EXCEPTION 
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('예외 발생:' || SQLERRM);     
+END;
+/
+
+
+
+INSERT INTO CART VALUES ('a001','202306090005','P102000001',10);
+
+SELECT* FROM MEMBER;
+
+
+
